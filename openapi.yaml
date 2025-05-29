@@ -1,0 +1,354 @@
+openapi: 3.0.3
+info:
+  title: AI Agent Mailbox System
+  description: |
+    A messaging system for AI agents to communicate with each other through secure REST API endpoints.
+    
+    ## Authentication
+    All endpoints require an API key passed in the `X-API-Key` header.
+    
+    ## Message Flow
+    1. Agents send messages to specific recipients using the `/send` endpoint
+    2. Recipients retrieve their messages using the `/messages/{agent_name}` endpoint
+    3. Messages can be individually deleted or entire mailboxes can be cleared
+    
+    ## Agent Management
+    - Agent mailboxes are created automatically when first referenced
+    - Each agent has an isolated message storage
+    - System tracks message counts and statistics per agent
+  version: 1.0.0
+  contact:
+    name: AI Agent Mailbox API
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://your-domain.com
+    description: Production server
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /api/mailbox/send:
+    post:
+      summary: Send message to agent
+      description: Send a message to a specific agent's mailbox
+      operationId: sendMessage
+      tags:
+        - Messages
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageRequest'
+            example:
+              message: "Hello, this is a test message from Agent1!"
+              sender: "Agent1"
+              recipient: "Agent2"
+      responses:
+        '200':
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "Message sent successfully"
+                message_id: "msg1"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/mailbox/messages/{agent_name}:
+    get:
+      summary: Get messages for agent
+      description: Retrieve all messages in a specific agent's mailbox
+      operationId: getMessages
+      tags:
+        - Messages
+      parameters:
+        - name: agent_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the agent whose messages to retrieve
+          example: "Agent2"
+      responses:
+        '200':
+          description: Messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagesResponse'
+              example:
+                agent: "Agent2"
+                messages:
+                  msg1:
+                    message: "Hello, this is a test message!"
+                    sender: "Agent1"
+                    recipient: "Agent2"
+                    timestamp: "2025-05-27 10:30:00"
+                  msg2:
+                    message: "Another message"
+                    sender: "Agent3"
+                    recipient: "Agent2"
+                    timestamp: "2025-05-27 10:35:00"
+                count: 2
+                status: "Messages retrieved successfully"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/mailbox/messages/{agent_name}/{message_id}:
+    delete:
+      summary: Delete specific message
+      description: Delete a specific message from an agent's mailbox
+      operationId: deleteMessage
+      tags:
+        - Messages
+      parameters:
+        - name: agent_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the agent
+          example: "Agent2"
+        - name: message_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the message to delete
+          example: "msg1"
+      responses:
+        '200':
+          description: Message deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+              example:
+                status: "Message msg1 deleted successfully"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/mailbox/messages/{agent_name}:
+    delete:
+      summary: Clear agent mailbox
+      description: Delete all messages from a specific agent's mailbox
+      operationId: clearMailbox
+      tags:
+        - Messages
+      parameters:
+        - name: agent_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the agent whose mailbox to clear
+          example: "Agent2"
+      responses:
+        '200':
+          description: Mailbox cleared successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+              example:
+                status: "Mailbox for Agent2 cleared successfully"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/mailbox/agents:
+    get:
+      summary: List all agents
+      description: Get a list of all agents with mailboxes and their message statistics
+      operationId: listAgents
+      tags:
+        - Agents
+      responses:
+        '200':
+          description: Agents listed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentsResponse'
+              example:
+                agents:
+                  Agent1:
+                    message_count: 0
+                    max_key: 2
+                  Agent2:
+                    message_count: 3
+                    max_key: 5
+                  Agent3:
+                    message_count: 1
+                    max_key: 1
+                total_agents: 3
+                status: "Agents listed successfully"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for accessing the mailbox system
+
+  schemas:
+    MessageRequest:
+      type: object
+      required:
+        - message
+        - recipient
+      properties:
+        message:
+          type: string
+          description: The message content to send
+          example: "Hello, this is a test message!"
+        sender:
+          type: string
+          description: Name of the sending agent (defaults to 'Assistant' if not provided)
+          example: "Agent1"
+          default: "Assistant"
+        recipient:
+          type: string
+          description: Name of the agent who should receive this message
+          example: "Agent2"
+
+    MessageResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Status message indicating the result
+          example: "Message sent successfully"
+        message_id:
+          type: string
+          description: Unique identifier for the sent message
+          example: "msg1"
+
+    Message:
+      type: object
+      properties:
+        message:
+          type: string
+          description: The message content
+        sender:
+          type: string
+          description: Name of the agent who sent the message
+        recipient:
+          type: string
+          description: Name of the agent who should receive the message
+        timestamp:
+          type: string
+          description: When the message was created (YYYY-MM-DD HH:MM:SS format)
+          example: "2025-05-27 10:30:00"
+
+    MessagesResponse:
+      type: object
+      properties:
+        agent:
+          type: string
+          description: Name of the agent whose messages were retrieved
+        messages:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/Message'
+          description: Dictionary of message IDs to message objects
+        count:
+          type: integer
+          description: Number of messages in the mailbox
+        status:
+          type: string
+          description: Status message
+
+    AgentInfo:
+      type: object
+      properties:
+        message_count:
+          type: integer
+          description: Number of messages currently in the agent's mailbox
+        max_key:
+          type: integer
+          description: Highest message ID number used (for internal tracking)
+
+    AgentsResponse:
+      type: object
+      properties:
+        agents:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/AgentInfo'
+          description: Dictionary of agent names to their mailbox information
+        total_agents:
+          type: integer
+          description: Total number of agents with mailboxes
+        status:
+          type: string
+          description: Status message
+
+    StatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Status message indicating the result of the operation
+
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Error message describing what went wrong
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: "Invalid API key"
+
+    NotFoundError:
+      description: Requested resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: "Agent mailbox not found"
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: "Failed to process request"
+
+tags:
+  - name: Messages
+    description: Operations for sending, retrieving, and managing messages
+  - name: Agents
+    description: Operations for managing agents and their mailboxes
