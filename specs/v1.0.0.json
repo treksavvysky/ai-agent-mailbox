@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",                   // Specification version
+  "message": {
+    "id": "uuid4-string",               // Unique identifier for the message
+    "thread_id": "uuid4-string",         // Optional thread for message correlation
+    "sender": "agent_id",                // ID of the sending agent
+    "recipient": "agent_id",             // ID of the recipient agent
+    "timestamp": "ISO8601-timestamp",    // UTC timestamp of when the message was sent
+    "type": "request",                   // One of: request, response, notification
+    "subject": "short-summary",           // Optional subject or short title
+    "content": "full-message-text",       // Optional human-readable content
+    "payload": {                          // Custom content for the message
+      "task": "example_task",
+      "data": { ... }
+    },
+    "metadata": {
+      "priority": "normal",              // Priority: low, normal, high
+      "expires_at": "ISO8601-timestamp", // Optional expiration
+      "tags": ["tag1", "tag2"]            // Optional categorization
+    },
+    "status": "unread"                    // unread, read, archived, deleted
+  }
+}
